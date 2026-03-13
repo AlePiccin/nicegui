@@ -10,7 +10,7 @@ from ...element import Element
 class ContentElement(Element):
     CONTENT_PROP = 'innerHTML'
     content = BindableProperty(
-        on_change=lambda sender, content: cast(Self, sender)._handle_content_change(content))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_content_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *, content: str, **kwargs: Any) -> None:
         super().__init__(**kwargs)

@@ -3,7 +3,8 @@ from typing import Any
 from typing_extensions import Self
 
 from ...element import Element
-from ...events import GenericEventArguments, Handler, JoystickEventArguments, handle_event
+from ...event import Event
+from ...events import GenericEventArguments, Handler, JoystickEventArguments
 
 
 class Joystick(Element, component='joystick.js', esm={'nicegui-joystick': 'dist'}, default_classes='nicegui-joystick'):
@@ -28,15 +29,20 @@ class Joystick(Element, component='joystick.js', esm={'nicegui-joystick': 'dist'
         self._props['options'] = options
         self.active = False
 
-        self._start_handlers = [on_start] if on_start else []
-        self._move_handlers = [on_move] if on_move else []
-        self._end_handlers = [on_end] if on_end else []
+        self._start_event: Event = Event()
+        self._move_event: Event = Event()
+        self._end_event: Event = Event()
+        if on_start:
+            self._start_event.subscribe(on_start)
+        if on_move:
+            self._move_event.subscribe(on_move)
+        if on_end:
+            self._end_event.subscribe(on_end)
 
         def handle_start() -> None:
             self.active = True
             args = JoystickEventArguments(sender=self, client=self.client, action='start')
-            for handler in self._start_handlers:
-                handle_event(handler, args)
+            self._start_event.emit(args)
 
         def handle_move(e: GenericEventArguments) -> None:
             if self.active:
@@ -45,16 +51,14 @@ class Joystick(Element, component='joystick.js', esm={'nicegui-joystick': 'dist'
                                               action='move',
                                               x=float(e.args['data']['vector']['x']),
                                               y=float(e.args['data']['vector']['y']))
-                for handler in self._move_handlers:
-                    handle_event(handler, args)
+                self._move_event.emit(args)
 
         def handle_end() -> None:
             self.active = False
             args = JoystickEventArguments(sender=self,
                                           client=self.client,
                                           action='end')
-            for handler in self._end_handlers:
-                handle_event(handler, args)
+            self._end_event.emit(args)
 
         self.on('start', handle_start, [])
         self.on('move', handle_move, ['data'], throttle=throttle)
@@ -62,15 +66,15 @@ class Joystick(Element, component='joystick.js', esm={'nicegui-joystick': 'dist'
 
     def on_start(self, callback: Handler[JoystickEventArguments]) -> Self:
         """Add a callback to be invoked when the user touches the joystick."""
-        self._start_handlers.append(callback)
+        self._start_event.subscribe(callback)
         return self
 
     def on_move(self, callback: Handler[JoystickEventArguments]) -> Self:
         """Add a callback to be invoked when the user moves the joystick."""
-        self._move_handlers.append(callback)
+        self._move_event.subscribe(callback)
         return self
 
     def on_end(self, callback: Handler[JoystickEventArguments]) -> Self:
         """Add a callback to be invoked when the user releases the joystick."""
-        self._end_handlers.append(callback)
+        self._end_event.subscribe(callback)
         return self

@@ -38,8 +38,9 @@ class Carousel(ValueElement):
     def _value_to_model_value(self, value: Any) -> Any:
         return value.props['name'] if isinstance(value, CarouselSlide) else value
 
-    def _handle_value_change(self, value: Any) -> None:
-        super()._handle_value_change(value)
+    def _handle_value_change(self, e: Any) -> None:
+        super()._handle_value_change(e)
+        value = e.value
         names = [slide.props['name'] for slide in self.default_slot]
         for i, slide in enumerate(self):
             done = i < names.index(value) if value in names else False

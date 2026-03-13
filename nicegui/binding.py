@@ -212,6 +212,9 @@ def bind(self_obj: Any, self_name: str, other_obj: Any, other_name: str, *,
     bind_to(self_obj, self_name, other_obj, other_name, forward=forward, self_strict=False, other_strict=False)
 
 
+_SENTINEL = object()
+
+
 class BindableProperty:
 
     def __init__(self, on_change: Callable[..., Any] | None = None) -> None:
@@ -221,21 +224,49 @@ class BindableProperty:
         self.name = name  # pylint: disable=attribute-defined-outside-init
 
     def __get__(self, owner: Any, _=None) -> Any:
+        if owner is None:
+            return self
         return getattr(owner, '___' + self.name)
 
     def __set__(self, owner: Any, value: Any) -> None:
         has_attr = hasattr(owner, '___' + self.name)
         if not has_attr:
             _make_copyable(type(owner))
-        value_changed = has_attr and getattr(owner, '___' + self.name) != value
+        previous_value = getattr(owner, '___' + self.name, _SENTINEL)
+        value_changed = has_attr and previous_value != value
         if has_attr and not value_changed:
             return
         setattr(owner, '___' + self.name, value)
         key = (id(owner), str(self.name))
         bindable_properties[key] = owner
         _propagate(owner, self.name)
-        if value_changed and self._change_handler is not None:
-            self._change_handler(owner, value)
+        if value_changed:
+            event = self._get_or_create_event_if_needed(owner)
+            if event is not None:
+                from .events import PropertyChangedArguments  # pylint: disable=import-outside-toplevel
+                event.emit(PropertyChangedArguments(owner=owner, value=value, previous_value=previous_value))
+
+    def _get_event(self, owner: Any) -> Any:
+        """Return the Event for this property on the given owner, or None."""
+        return getattr(owner, f'___event_{self.name}', None)
+
+    def get_or_create_event(self, owner: Any) -> Any:
+        """Return or create the Event for this property on the given owner."""
+        event = self._get_event(owner)
+        if event is None:
+            from .event import Event  # pylint: disable=import-outside-toplevel
+            event = Event()
+            setattr(owner, f'___event_{self.name}', event)
+            if self._change_handler is not None:
+                event.subscribe(self._change_handler, unsubscribe_on_delete=False)
+        return event
+
+    def _get_or_create_event_if_needed(self, owner: Any) -> Any:
+        """Return or lazily create the Event if on_change is declared, else return existing or None."""
+        event = self._get_event(owner)
+        if event is None and self._change_handler is not None:
+            return self.get_or_create_event(owner)
+        return event
 
 
 def remove(objects: Iterable[Any]) -> None:
@@ -267,9 +298,11 @@ def reset() -> None:
 
     This function is intended for testing purposes only.
     """
+    from . import event as event_module  # pylint: disable=import-outside-toplevel
     bindings.clear()
     bindable_properties.clear()
     active_links.clear()
+    event_module.reset()
 
 
 @dataclass_transform()
@@ -328,6 +361,9 @@ def _make_copyable(cls: type[T]) -> None:
             for attr_name in dir(obj):
                 if (id(obj), attr_name) in bindable_properties:
                     bindable_properties[(id(copy), attr_name)] = copy
+            for attr_name in list(vars(copy)):
+                if attr_name.startswith('___event_'):
+                    delattr(copy, attr_name)
             return copy
         return (creator_with_hook, *reduced[1:])
     copyreg.pickle(cls, _pickle_function)

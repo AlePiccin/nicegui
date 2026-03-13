@@ -19,32 +19,28 @@ class ObservableCollection(abc.ABC):  # noqa: B024
                  on_change: Callable | None,
                  _parent: ObservableCollection | None,
                  ) -> None:
+        from .event import Event  # pylint: disable=import-outside-toplevel
         super().__init__(factory() if data is None else data)  # type: ignore
         self._parent = _parent
         self.last_modified = time.time()
-        self._change_handlers: list[Callable] = [on_change] if on_change else []
-
-    @property
-    def change_handlers(self) -> list[Callable]:
-        """Return a list of all change handlers registered on this collection and its parents."""
-        change_handlers = self._change_handlers[:]
-        if self._parent is not None:
-            change_handlers.extend(self._parent.change_handlers)
-        return change_handlers
+        self.changed: Event = Event()
+        if on_change:
+            self.changed.subscribe(on_change, unsubscribe_on_delete=False)
+        if _parent:
+            self.changed.subscribe(_parent.changed.emit, unsubscribe_on_delete=False)
 
     def _handle_change(self) -> None:
         self.last_modified = time.time()
-        for handler in self.change_handlers:
-            events.handle_event(handler, events.ObservableChangeEventArguments(sender=self))
+        self.changed.emit(events.ObservableChangedArguments(owner=self))
 
     def on_change(self, handler: Callable) -> None:
         """Register a handler to be called when the collection changes."""
-        if handler != self._handle_change:  # pylint: disable=comparison-with-callable
-            self._change_handlers.append(handler)
+        self.changed.subscribe(handler, unsubscribe_on_delete=False)
 
     def _observe(self, data: Any) -> Any:
         if isinstance(data, ObservableCollection):
-            data.on_change(self._handle_change)
+            if data is not self:
+                data.changed.subscribe(self.changed.emit, unsubscribe_on_delete=False)
             return data
         if isinstance(data, dict):
             return ObservableDict(data, _parent=self)

@@ -4,13 +4,13 @@ from typing_extensions import Self
 
 from ...defaults import DEFAULT_PROP, resolve_defaults
 from ...element import Element
+from ...event import Event
 from ...events import (
     ClickEventArguments,
     GenericEventArguments,
     Handler,
     SceneClickEventArguments,
     SceneClickHit,
-    handle_event,
 )
 from .scene import Scene, SceneCamera
 
@@ -54,7 +54,9 @@ class SceneView(Element, component='scene_view.js', default_classes='nicegui-sce
         self.camera = camera or Scene.perspective_camera()
         self._props['camera-type'] = self.camera.type
         self._props['camera-params'] = self.camera.params
-        self._click_handlers = [on_click] if on_click else []
+        self._click_event: Event = Event()
+        if on_click:
+            self._click_event.subscribe(on_click)
         self.on('init', self._handle_init)
         self.on('click3d', self._handle_click)
 
@@ -65,7 +67,7 @@ class SceneView(Element, component='scene_view.js', default_classes='nicegui-sce
 
     def on_click(self, callback: Handler[ClickEventArguments]) -> Self:
         """Add a callback to be invoked when a 3D object is clicked."""
-        self._click_handlers.append(callback)
+        self._click_event.subscribe(callback)
         return self
 
     def _handle_init(self) -> None:
@@ -97,8 +99,7 @@ class SceneView(Element, component='scene_view.js', default_classes='nicegui-sce
                 z=hit['point']['z'],
             ) for hit in e.args['hits']],
         )
-        for handler in self._click_handlers:
-            handle_event(handler, arguments)
+        self._click_event.emit(arguments)
 
     def move_camera(self,
                     x: float | None = None,

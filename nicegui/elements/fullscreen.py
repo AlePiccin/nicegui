@@ -1,3 +1,5 @@
+from typing import Any
+
 from ..defaults import DEFAULT_PROP, resolve_defaults
 from ..events import Handler, ValueChangeEventArguments
 from .mixins.value_element import ValueElement
@@ -55,6 +57,6 @@ class Fullscreen(ValueElement, component='fullscreen.js'):
         """Toggle fullscreen mode."""
         self.value = not self.value
 
-    def _handle_value_change(self, value: bool) -> None:
-        super()._handle_value_change(value)
-        self.run_method('enter' if value else 'exit')
+    def _handle_value_change(self, e: Any) -> None:
+        super()._handle_value_change(e)
+        self.run_method('enter' if e.value else 'exit')

@@ -10,7 +10,7 @@ from ...element import Element
 class FilterElement(Element):
     FILTER_PROP = 'filter'
     filter = BindableProperty(
-        on_change=lambda sender, filter: cast(Self, sender)._handle_filter_change(filter))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_filter_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *, filter: str | None = None, **kwargs: Any) -> None:  # pylint: disable=redefined-builtin
         super().__init__(**kwargs)

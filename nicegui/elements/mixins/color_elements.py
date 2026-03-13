@@ -25,7 +25,7 @@ TAILWIND_COLORS = {
 class BackgroundColorElement(Element):
     BACKGROUND_COLOR_PROP = 'color'
     background_color = BindableProperty(
-        on_change=lambda sender, background_color: cast(Self, sender)._handle_background_color_change(background_color))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_background_color_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *, background_color: str | None, **kwargs: Any) -> None:
         super().__init__(**kwargs)
@@ -129,7 +129,7 @@ class TextColorElement(Element):
     TEXT_COLOR_PROP = 'color'
 
     text_color = BindableProperty(
-        on_change=lambda sender, text_color: cast(Self, sender)._handle_text_color_change(text_color))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_text_color_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *, text_color: str | None, **kwargs: Any) -> None:
         super().__init__(**kwargs)

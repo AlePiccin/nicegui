@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 class Visibility:
     visible = BindableProperty(
-        on_change=lambda sender, visible: cast(Self, sender)._handle_visibility_change(visible))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_visibility_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

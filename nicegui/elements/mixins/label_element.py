@@ -9,7 +9,7 @@ from ...element import Element
 
 class LabelElement(Element):
     label = BindableProperty(
-        on_change=lambda sender, label: cast(Self, sender)._handle_label_change(label))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_label_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *, label: str | None, **kwargs: Any) -> None:
         super().__init__(**kwargs)

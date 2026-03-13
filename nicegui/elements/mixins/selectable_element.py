@@ -5,12 +5,12 @@ from typing_extensions import Self
 
 from ...binding import BindableProperty, bind, bind_from, bind_to
 from ...element import Element
-from ...events import Handler, ValueChangeEventArguments, handle_event
+from ...events import Handler, ValueChangeEventArguments
 
 
 class SelectableElement(Element):
     selected = BindableProperty(
-        on_change=lambda sender, selected: cast(Self, sender)._handle_selection_change(selected))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_selection_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *,
                  selectable: bool,
@@ -28,13 +28,12 @@ class SelectableElement(Element):
         self.set_selected(selected)
         self.on('update:selected', lambda e: self.set_selected(e.args))
 
-        self._selection_change_handlers: list[Handler[ValueChangeEventArguments]] = []
         if on_selection_change:
             self.on_selection_change(on_selection_change)
 
     def on_selection_change(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when the selection state changes."""
-        self._selection_change_handlers.append(callback)
+        type(self).selected.get_or_create_event(self).subscribe(callback)
         return self
 
     def bind_selected_to(self,
@@ -114,8 +113,4 @@ class SelectableElement(Element):
 
         :param selected: The new selection state.
         """
-        previous_value = self._props.get('selected')
         self._props['selected'] = selected
-        args = ValueChangeEventArguments(sender=self, client=self.client, value=selected, previous_value=previous_value)
-        for handler in self._selection_change_handlers:
-            handle_event(handler, args)

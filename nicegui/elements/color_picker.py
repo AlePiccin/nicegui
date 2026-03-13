@@ -2,7 +2,8 @@ from typing_extensions import Self
 
 from ..defaults import DEFAULT_PROPS, resolve_defaults
 from ..element import Element
-from ..events import ColorPickEventArguments, GenericEventArguments, Handler, handle_event
+from ..event import Event
+from ..events import ColorPickEventArguments, GenericEventArguments, Handler
 from .menu import Menu
 
 
@@ -22,11 +23,12 @@ class ColorPicker(Menu):
         :param value: whether the menu is already opened (default: `False`)
         """
         super().__init__(value=value)
-        self._pick_handlers = [on_pick] if on_pick else []
+        self._pick_event: Event = Event()
+        if on_pick:
+            self._pick_event.subscribe(on_pick)
         with self:
             def handle_change(e: GenericEventArguments):
-                for handler in self._pick_handlers:
-                    handle_event(handler, ColorPickEventArguments(sender=self, client=self.client, color=e.args))
+                self._pick_event.emit(ColorPickEventArguments(sender=self, client=self.client, color=e.args))
             self.q_color = Element('q-color').on('change', handle_change)
 
     def set_color(self, color: str) -> None:
@@ -38,5 +40,5 @@ class ColorPicker(Menu):
 
     def on_pick(self, callback: Handler[ColorPickEventArguments]) -> Self:
         """Add a callback to be invoked when a color is picked."""
-        self._pick_handlers.append(callback)
+        self._pick_event.subscribe(callback)
         return self

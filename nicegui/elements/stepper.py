@@ -38,8 +38,9 @@ class Stepper(ValueElement, default_classes='nicegui-stepper'):
     def _value_to_model_value(self, value: Any) -> Any:
         return value.props['name'] if isinstance(value, Step) else value
 
-    def _handle_value_change(self, value: Any) -> None:
-        super()._handle_value_change(value)
+    def _handle_value_change(self, e: Any) -> None:
+        super()._handle_value_change(e)
+        value = e.value
         names = [step.props['name'] for step in self]
         for i, step in enumerate(self):
             done = i < names.index(value) if value in names else False

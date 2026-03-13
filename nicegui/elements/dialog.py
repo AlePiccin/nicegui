@@ -66,8 +66,8 @@ class Dialog(ValueElement, component='dialog.js'):
         self._result = result
         self.submitted.set()
 
-    def _handle_value_change(self, value: Any) -> None:
-        super()._handle_value_change(value)
+    def _handle_value_change(self, e: Any) -> None:
+        super()._handle_value_change(e)
         if not self.value:
             self._result = None
             self.submitted.set()

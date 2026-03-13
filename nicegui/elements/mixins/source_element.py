@@ -12,7 +12,7 @@ from ...helpers import is_file
 
 class SourceElement(Element):
     source = BindableProperty(
-        on_change=lambda sender, source: cast(Self, sender)._handle_source_change(source))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_source_change(e.value))  # pylint: disable=protected-access
 
     SOURCE_IS_MEDIA_FILE: bool = False
 

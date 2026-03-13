@@ -5,6 +5,7 @@ from starlette.datastructures import UploadFile
 from typing_extensions import Self
 
 from ..defaults import DEFAULT_PROP, resolve_defaults
+from ..event import Event
 from ..events import Handler, MultiUploadEventArguments, UiEventArguments, UploadEventArguments, handle_event
 from ..nicegui import app
 from .mixins.disableable_element import DisableableElement
@@ -66,14 +67,19 @@ class Upload(LabelElement, DisableableElement, component='upload.js'):
         if multiple and on_multi_upload:
             self._props['batch'] = True
 
-        self._begin_upload_handlers = [on_begin_upload] if on_begin_upload else []
-        self._upload_handlers = [on_upload] if on_upload else []
-        self._multi_upload_handlers = [on_multi_upload] if on_multi_upload else []
+        self._begin_upload_event: Event = Event()
+        self._upload_event: Event = Event()
+        self._multi_upload_event: Event = Event()
+        if on_begin_upload:
+            self._begin_upload_event.subscribe(on_begin_upload)
+        if on_upload:
+            self._upload_event.subscribe(on_upload)
+        if on_multi_upload:
+            self._multi_upload_event.subscribe(on_multi_upload)
 
         @app.post(self._props['url'])
         async def upload_route(request: Request) -> dict[str, str]:
-            for begin_upload_handler in self._begin_upload_handlers:
-                handle_event(begin_upload_handler, UiEventArguments(sender=self, client=self.client))
+            self._begin_upload_event.emit(UiEventArguments(sender=self, client=self.client))
             async with request.form() as form:
                 files = [await create_file_upload(cast(UploadFile, data)) for data in form.values()]
             await self.handle_uploads(files)
@@ -90,25 +96,22 @@ class Upload(LabelElement, DisableableElement, component='upload.js'):
         assert all(isinstance(f, Upload.FileUpload) for f in files), \
             'since NiceGUI 3.0, uploads must be a list of FileUpload instances'
         for file in files:
-            for upload_handler in self._upload_handlers:
-                handle_event(upload_handler, UploadEventArguments(sender=self, client=self.client, file=file))
-        multi_upload_args = MultiUploadEventArguments(sender=self, client=self.client, files=files)
-        for multi_upload_handler in self._multi_upload_handlers:
-            handle_event(multi_upload_handler, multi_upload_args)
+            self._upload_event.emit(UploadEventArguments(sender=self, client=self.client, file=file))
+        self._multi_upload_event.emit(MultiUploadEventArguments(sender=self, client=self.client, files=files))
 
     def on_begin_upload(self, callback: Handler[UiEventArguments]) -> Self:
         """Add a callback to be invoked when the upload begins."""
-        self._begin_upload_handlers.append(callback)
+        self._begin_upload_event.subscribe(callback)
         return self
 
     def on_upload(self, callback: Handler[UploadEventArguments]) -> Self:
         """Add a callback to be invoked when a file is uploaded."""
-        self._upload_handlers.append(callback)
+        self._upload_event.subscribe(callback)
         return self
 
     def on_multi_upload(self, callback: Handler[MultiUploadEventArguments]) -> Self:
         """Add a callback to be invoked when multiple files have been uploaded."""
-        self._multi_upload_handlers.append(callback)
+        self._multi_upload_event.subscribe(callback)
         return self
 
     def on_rejected(self, callback: Handler[UiEventArguments]) -> Self:

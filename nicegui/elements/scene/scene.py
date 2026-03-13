@@ -8,13 +8,13 @@ from typing_extensions import Self
 from ... import binding
 from ...defaults import DEFAULT_PROP, resolve_defaults
 from ...element import Element
+from ...event import Event
 from ...events import (
     GenericEventArguments,
     Handler,
     SceneClickEventArguments,
     SceneClickHit,
     SceneDragEventArguments,
-    handle_event,
 )
 from .scene_object3d import Object3D
 
@@ -107,10 +107,16 @@ class Scene(Element, component='scene.js', esm={'nicegui-scene': 'dist'}, defaul
         self._props['camera-params'] = self.camera.params
         self.objects: dict[str, Object3D] = {}
         self.stack: list[Object3D | SceneObject] = [SceneObject()]
-        self._click_handlers = [on_click] if on_click else []
+        self._click_event: Event = Event()
+        if on_click:
+            self._click_event.subscribe(on_click)
         self._props['click-events'] = click_events[:]
-        self._drag_start_handlers = [on_drag_start] if on_drag_start else []
-        self._drag_end_handlers = [on_drag_end] if on_drag_end else []
+        self._drag_start_event: Event = Event()
+        self._drag_end_event: Event = Event()
+        if on_drag_start:
+            self._drag_start_event.subscribe(on_drag_start)
+        if on_drag_end:
+            self._drag_end_event.subscribe(on_drag_end)
         self.on('init', self._handle_init)
         self.on('click3d', self._handle_click)
         self.on('dragstart', self._handle_drag)
@@ -126,17 +132,17 @@ class Scene(Element, component='scene.js', esm={'nicegui-scene': 'dist'}, defaul
 
     def on_click(self, callback: Handler[SceneClickEventArguments]) -> Self:
         """Add a callback to be invoked when a 3D object is clicked."""
-        self._click_handlers.append(callback)
+        self._click_event.subscribe(callback)
         return self
 
     def on_drag_start(self, callback: Handler[SceneDragEventArguments]) -> Self:
         """Add a callback to be invoked when a 3D object is dragged."""
-        self._drag_start_handlers.append(callback)
+        self._drag_start_event.subscribe(callback)
         return self
 
     def on_drag_end(self, callback: Handler[SceneDragEventArguments]) -> Self:
         """Add a callback to be invoked when a 3D object is dropped."""
-        self._drag_end_handlers.append(callback)
+        self._drag_end_event.subscribe(callback)
         return self
 
     @staticmethod
@@ -202,8 +208,7 @@ class Scene(Element, component='scene.js', esm={'nicegui-scene': 'dist'}, defaul
                 z=hit['point']['z'],
             ) for hit in e.args['hits']],
         )
-        for handler in self._click_handlers:
-            handle_event(handler, arguments)
+        self._click_event.emit(arguments)
 
     def _handle_drag(self, e: GenericEventArguments) -> None:
         arguments = SceneDragEventArguments(
@@ -219,8 +224,8 @@ class Scene(Element, component='scene.js', esm={'nicegui-scene': 'dist'}, defaul
         if arguments.type == 'dragend':
             self.objects[arguments.object_id].move(arguments.x, arguments.y, arguments.z)
 
-        for handler in (self._drag_start_handlers if arguments.type == 'dragstart' else self._drag_end_handlers):
-            handle_event(handler, arguments)
+        event = self._drag_start_event if arguments.type == 'dragstart' else self._drag_end_event
+        event.emit(arguments)
 
     def __len__(self) -> int:
         return len(self.objects)

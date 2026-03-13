@@ -4,7 +4,8 @@ from typing import Any, Literal
 from typing_extensions import Self
 
 from ..defaults import DEFAULT_PROP, resolve_defaults
-from ..events import GenericEventArguments, Handler, ValueChangeEventArguments, handle_event
+from ..event import Event
+from ..events import GenericEventArguments, Handler, ValueChangeEventArguments
 from .mixins.filter_element import FilterElement
 
 
@@ -51,9 +52,15 @@ class Tree(FilterElement):
         if on_tick or tick_strategy:
             self._props['ticked'] = []
             self._props['tick-strategy'] = tick_strategy or 'leaf'
-        self._select_handlers = [on_select] if on_select else []
-        self._expand_handlers = [on_expand] if on_expand else []
-        self._tick_handlers = [on_tick] if on_tick else []
+        self._select_event: Event = Event()
+        self._expand_event: Event = Event()
+        self._tick_event: Event = Event()
+        if on_select:
+            self._select_event.subscribe(on_select)
+        if on_expand:
+            self._expand_event.subscribe(on_expand)
+        if on_tick:
+            self._tick_event.subscribe(on_tick)
 
         # https://github.com/zauberzeug/nicegui/issues/1385
         self._props.add_warning('default-expand-all',
@@ -69,8 +76,7 @@ class Tree(FilterElement):
             update_prop('selected', e.args)
             args = ValueChangeEventArguments(sender=self, client=self.client,
                                              value=e.args, previous_value=previous_value)
-            for handler in self._select_handlers:
-                handle_event(handler, args)
+            self._select_event.emit(args)
         self.on('update:selected', handle_selected)
 
         def handle_expanded(e: GenericEventArguments) -> None:
@@ -78,8 +84,7 @@ class Tree(FilterElement):
             update_prop('expanded', e.args)
             args = ValueChangeEventArguments(sender=self, client=self.client,
                                              value=e.args, previous_value=previous_value)
-            for handler in self._expand_handlers:
-                handle_event(handler, args)
+            self._expand_event.emit(args)
         self.on('update:expanded', handle_expanded)
 
         def handle_ticked(e: GenericEventArguments) -> None:
@@ -87,14 +92,13 @@ class Tree(FilterElement):
             update_prop('ticked', e.args)
             args = ValueChangeEventArguments(sender=self, client=self.client,
                                              value=e.args, previous_value=previous_value)
-            for handler in self._tick_handlers:
-                handle_event(handler, args)
+            self._tick_event.emit(args)
         self.on('update:ticked', handle_ticked)
 
     def on_select(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when the selection changes."""
         self._props.setdefault('selected', None)
-        self._select_handlers.append(callback)
+        self._select_event.subscribe(callback)
         return self
 
     def select(self, node_key: str | None) -> Self:
@@ -114,14 +118,14 @@ class Tree(FilterElement):
     def on_expand(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when the expansion changes."""
         self._props.setdefault('expanded', [])
-        self._expand_handlers.append(callback)
+        self._expand_event.subscribe(callback)
         return self
 
     def on_tick(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when a node is ticked or unticked."""
         self._props.setdefault('ticked', [])
         self._props.setdefault('tick-strategy', 'leaf')
-        self._tick_handlers.append(callback)
+        self._tick_event.subscribe(callback)
         return self
 
     def tick(self, node_keys: list[str] | None = None) -> Self:

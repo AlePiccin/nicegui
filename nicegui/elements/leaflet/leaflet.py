@@ -21,8 +21,8 @@ class Leaflet(Element, component='leaflet.js', esm={'nicegui-leaflet': 'dist'}, 
     from .leaflet_layers import VideoOverlay as video_overlay
     from .leaflet_layers import WmsLayer as wms_layer
 
-    center = binding.BindableProperty(lambda sender, value: cast(Leaflet, sender).set_center(value))
-    zoom = binding.BindableProperty(lambda sender, value: cast(Leaflet, sender).set_zoom(value))
+    center = binding.BindableProperty(lambda e: cast(Leaflet, e.owner).set_center(e.value))
+    zoom = binding.BindableProperty(lambda e: cast(Leaflet, e.owner).set_zoom(e.value))
 
     @resolve_defaults
     def __init__(self,

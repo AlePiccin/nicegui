@@ -28,7 +28,7 @@ class Editor(ValueElement, DisableableElement, component='editor.js', default_cl
         super().__init__(value=value, on_value_change=on_change)
         self._props.set_optional('placeholder', placeholder)
 
-    def _handle_value_change(self, value: Any) -> None:
-        super()._handle_value_change(value)
+    def _handle_value_change(self, e: Any) -> None:
+        super()._handle_value_change(e)
         if self._send_update_on_value_change:
             self.run_method('updateValue')

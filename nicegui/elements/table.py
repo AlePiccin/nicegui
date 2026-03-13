@@ -5,12 +5,12 @@ from typing_extensions import Self
 from .. import optional_features
 from ..defaults import DEFAULT_PROP, resolve_defaults
 from ..element import Element
+from ..event import Event
 from ..events import (
     GenericEventArguments,
     Handler,
     TableSelectionEventArguments,
     ValueChangeEventArguments,
-    handle_event,
 )
 from ..logging import log
 from .mixins.filter_element import FilterElement
@@ -77,8 +77,12 @@ class Table(FilterElement, component='table.js'):
         self._props['selection'] = selection or 'none'
         self._props['selected'] = []
         self._props['fullscreen'] = False
-        self._selection_handlers = [on_select] if on_select else []
-        self._pagination_change_handlers = [on_pagination_change] if on_pagination_change else []
+        self._select_event: Event = Event()
+        self._pagination_change_event: Event = Event()
+        if on_select:
+            self._select_event.subscribe(on_select)
+        if on_pagination_change:
+            self._pagination_change_event.subscribe(on_pagination_change)
 
         def handle_selection(e: GenericEventArguments) -> None:
             if e.args['added']:
@@ -88,8 +92,7 @@ class Table(FilterElement, component='table.js'):
             else:
                 self.selected = [row for row in self.selected if row[self.row_key] not in e.args['keys']]
             arguments = TableSelectionEventArguments(sender=self, client=self.client, selection=self.selected)
-            for handler in self._selection_handlers:
-                handle_event(handler, arguments)
+            self._select_event.emit(arguments)
         self.on('selection', handle_selection, ['added', 'rows', 'keys'])
 
         def handle_pagination_change(e: GenericEventArguments) -> None:
@@ -97,8 +100,7 @@ class Table(FilterElement, component='table.js'):
             self.pagination = e.args
             arguments = ValueChangeEventArguments(sender=self, client=self.client,
                                                   value=self.pagination, previous_value=previous_value)
-            for handler in self._pagination_change_handlers:
-                handle_event(handler, arguments)
+            self._pagination_change_event.emit(arguments)
         self.on('update:pagination', handle_pagination_change)
 
     def _to_dict(self) -> dict[str, Any]:
@@ -127,12 +129,12 @@ class Table(FilterElement, component='table.js'):
 
     def on_select(self, callback: Handler[TableSelectionEventArguments]) -> Self:
         """Add a callback to be invoked when the selection changes."""
-        self._selection_handlers.append(callback)
+        self._select_event.subscribe(callback)
         return self
 
     def on_pagination_change(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when the pagination changes."""
-        self._pagination_change_handlers.append(callback)
+        self._pagination_change_event.subscribe(callback)
         return self
 
     def _normalize_columns(self, columns: list[dict]) -> list[dict]:

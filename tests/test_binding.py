@@ -215,7 +215,7 @@ def test_automatic_cleanup(screen: Screen):
 async def test_nested_propagation(user: User):
     class Demo:
         a = binding.BindableProperty()
-        b = binding.BindableProperty(on_change=lambda obj, _: obj.change_a())
+        b = binding.BindableProperty(on_change=lambda e: e.owner.change_a())
 
         def __init__(self) -> None:
             self.a = 0

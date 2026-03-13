@@ -9,7 +9,7 @@ from ...element import Element
 
 class IconElement(Element):
     icon = BindableProperty(
-        on_change=lambda sender, icon: cast(Self, sender)._handle_icon_change(icon))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_icon_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, *, icon: str | None = None, **kwargs: Any) -> None:  # pylint: disable=redefined-builtin
         super().__init__(**kwargs)

@@ -5,7 +5,7 @@ from typing_extensions import Self
 
 from ...binding import BindableProperty, bind, bind_from, bind_to
 from ...element import Element
-from ...events import GenericEventArguments, Handler, ValueChangeEventArguments, handle_event
+from ...events import GenericEventArguments, Handler, ValueChangeEventArguments
 
 
 class ValueElement(Element):
@@ -21,7 +21,7 @@ class ValueElement(Element):
     '''
 
     value = BindableProperty(
-        on_change=lambda sender, value: cast(Self, sender)._handle_value_change(value))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_value_change(e))  # pylint: disable=protected-access
 
     def __init__(self, *,
                  value: Any,
@@ -34,7 +34,8 @@ class ValueElement(Element):
         self.set_value(value)
         self._props[self.VALUE_PROP] = self._value_to_model_value(value)
         self._props['loopback'] = self.LOOPBACK
-        self._change_handlers: list[Handler[ValueChangeEventArguments]] = [on_value_change] if on_value_change else []
+        if on_value_change:
+            self.on_value_change(on_value_change)
 
         def handle_change(e: GenericEventArguments) -> None:
             self._send_update_on_value_change = self.LOOPBACK is True
@@ -44,7 +45,7 @@ class ValueElement(Element):
 
     def on_value_change(self, callback: Handler[ValueChangeEventArguments]) -> Self:
         """Add a callback to be invoked when the value changes."""
-        self._change_handlers.append(callback)
+        type(self).value.get_or_create_event(self).subscribe(callback, unsubscribe_on_delete=None)
         return self
 
     def bind_value_to(self,
@@ -119,17 +120,11 @@ class ValueElement(Element):
         """
         self.value = value
 
-    def _handle_value_change(self, value: Any) -> None:
-        previous_value = self._props.get(self.VALUE_PROP)
+    def _handle_value_change(self, e: Any) -> None:
         with self._props.suspend_updates():
-            self._props[self.VALUE_PROP] = self._value_to_model_value(value)
+            self._props[self.VALUE_PROP] = self._value_to_model_value(e.value)
         if self._send_update_on_value_change:
             self.update()
-        args = ValueChangeEventArguments(sender=self, client=self.client,
-                                         value=self._value_to_event_value(value),
-                                         previous_value=self._value_to_event_value(previous_value))
-        for handler in self._change_handlers:
-            handle_event(handler, args)
 
     def _event_args_to_value(self, e: GenericEventArguments) -> Any:
         return e.args

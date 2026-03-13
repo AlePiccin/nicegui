@@ -22,6 +22,37 @@ class EventArguments:
 
 
 @dataclass(kw_only=True, slots=True)
+class ObservableChangedArguments(EventArguments):
+    """Event arguments for observable change notifications.
+
+    :param owner: The observable object that changed.
+    """
+    owner: Any
+
+    @property
+    def sender(self) -> Any:
+        """Alias for ``owner`` for backward compatibility."""
+        return self.owner
+
+    @property
+    def client(self) -> Client:
+        """The client associated with the owner element."""
+        return self.owner.client
+
+
+@dataclass(kw_only=True, slots=True)
+class PropertyChangedArguments(ObservableChangedArguments):
+    """Event arguments for property change notifications on BindableProperty.
+
+    :param owner: The object whose property changed.
+    :param value: The new value.
+    :param previous_value: The previous value (sentinel if first set).
+    """
+    value: Any
+    previous_value: Any
+
+
+@dataclass(kw_only=True, slots=True)
 class ObservableChangeEventArguments(EventArguments):
     sender: ObservableCollection
 

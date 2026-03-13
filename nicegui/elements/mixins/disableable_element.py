@@ -9,7 +9,7 @@ from ...element import Element
 
 class DisableableElement(Element):
     enabled = BindableProperty(
-        on_change=lambda sender, value: cast(Self, sender)._handle_enabled_change(value))  # pylint: disable=protected-access
+        on_change=lambda e: cast(Self, e.owner)._handle_enabled_change(e.value))  # pylint: disable=protected-access
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)

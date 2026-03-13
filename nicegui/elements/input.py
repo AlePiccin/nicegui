@@ -110,7 +110,7 @@ class Input(LabelElement, ValidationElement, DisableableElement, component='inpu
         else:
             self._props['suffix'] = value
 
-    def _handle_value_change(self, value: Any) -> None:
-        super()._handle_value_change(value)
+    def _handle_value_change(self, e: Any) -> None:
+        super()._handle_value_change(e)
         if self._send_update_on_value_change:
             self.run_method('updateValue')
